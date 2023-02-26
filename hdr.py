@@ -1,5 +1,8 @@
 '''
 This is a Neural Network script that performs handwritten digit recognition
+
+To do:
+	Continue coding the learning curves!
 '''
 import numpy as np
 import pandas as pd
@@ -7,7 +10,6 @@ import matplotlib.pyplot as plt
 import math
 import cv2
 from PIL import Image,ImageEnhance, ImageOps
-
 
 def initialize_wmatrices(n_layers):
 
@@ -24,7 +26,7 @@ def initialize_wmatrices(n_layers):
 
 def sigmoid(x):
 
-	return 1.0/(1.0+np.exp(-x))
+	return 1.0/(1.0+np.exp(-x.astype('float128')))  # float128 prevents overflow
 
 
 def sigmoid_der(x):
@@ -117,7 +119,6 @@ def train_weights(dataset,weights_matrices,number_examples,alpha):
 		output_layer,a_list = feed_forward(input_layer,weights_matrices)
 		weights_matrices = backprop(output_layer,a_list,vectorized_ground,weights_matrices,input_layer,alpha)
 
-
 	return weights_matrices
 
 
@@ -132,7 +133,7 @@ def calculate_confusion_matrix(data_test,weights_matrices,ni,nf):
 		output_layer,a_list = feed_forward(input_layer,weights_matrices)
 		prediction = output_layer.argmax()
 
-		#print("ground:",ground)
+		#print("ground:",ground
 		#print("Predicción:",prediction)
 		confusion_matrix[ground,prediction]+=1
 
@@ -154,7 +155,7 @@ def performance_metrix(confusion_matrix):
 
 	return accuracy,precision,recall,F1score
 
-def calculate_performance_vs_trainingsize(trainingsize_list,n_layers,alpha,data,data_test):
+def calculate_performance_vs_trainingsize(trainingsize_list,n_layers,alpha,data_train,data_test):
 
 	accuracy_list = []
 	precision_list = []
@@ -166,8 +167,9 @@ def calculate_performance_vs_trainingsize(trainingsize_list,n_layers,alpha,data,
 	for n in trainingsize_list: 
 		del weights_matrices  # just in case it brings information from the past
 		weights_matrices = initialize_wmatrices(n_layers)
-		weights_matrices = train_weights(data,weights_matrices,n,alpha)
-		confusion_matrix = calculate_confusion_matrix(data_test,weights_matrices,1,500)
+		weights_matrices = train_weights(data_train,weights_matrices,n,alpha)
+		confusion_matrix = calculate_confusion_matrix(data_test,weights_matrices,1,1000)
+		#print(confusion_matrix)
 		accuracy,precision,recall,F1score = performance_metrix(confusion_matrix)
 
 		accuracy_list += [accuracy]
@@ -177,6 +179,64 @@ def calculate_performance_vs_trainingsize(trainingsize_list,n_layers,alpha,data,
 
 	return accuracy_list,precision_list,recall_list,F1score_list
 
+
+def calculate_performance_vs_alpha(trainingsize,n_layers,alpha_list,data,data_test):
+
+	accuracy_list = []
+	precision_list = []
+	recall_list = []
+	F1score_list = []
+	weights_matrices = 0
+
+
+	for alpha in alpha_list: 
+		print("alpha=",alpha)
+		del weights_matrices  # just in case it brings information from the past
+		weights_matrices = initialize_wmatrices(n_layers)
+		weights_matrices = train_weights(data,weights_matrices,trainingsize,alpha)
+		confusion_matrix = calculate_confusion_matrix(data_test,weights_matrices,1,1000)
+		accuracy,precision,recall,F1score = performance_metrix(confusion_matrix)
+
+		accuracy_list += [accuracy]
+		precision_list += [precision]
+		recall_list += [recall]
+		F1score_list += [F1score]
+
+	return accuracy_list,precision_list,recall_list,F1score_list
+
+
+def calculate_learning_curve(trainingsize_list,n_layers,alpha,data_train,data_test):
+	'''
+	TO DO: FINISH THIS FUNCTION!!!		
+	Calculate cross entropy vs. training dataset size
+	The cross entropy is calculated for the traing set and the testing set
+	https://machinelearningmastery.com/learning-curves-for-diagnosing-machine-learning-model-performance/
+	'''
+
+	training_curve = []
+	testing_curve = []
+	weights_matrices = 0
+
+	for n in trainingsize_list: 
+		del weights_matrices  # just in case it brings information from the past
+		weights_matrices = initialize_wmatrices(n_layers)
+		weights_matrices = train_weights(data_train,weights_matrices,n,alpha)
+
+		training_curve+=[calculate_cross_entropy(data,weights_matrices,n)] 
+		#confusion_matrix = calculate_confusion_matrix(data_test,weights_matrices,1,1000)
+		#print(confusion_matrix)
+		#accuracy,precision,recall,F1score = performance_metrix(confusion_matrix)
+
+		#accuracy_list += [accuracy]
+		#precision_list += [precision]
+		#recall_list += [recall]
+		#F1score_list += [F1score]
+
+	return #accuracy_list,precision_list,recall_list,F1score_list
+
+
+
+
 ########################  MAIN  ########################
 def main():
 
@@ -184,7 +244,7 @@ def main():
 	n_layers = [784,200,100,10] 	# Each element is the number of neurons in each layer
 	inputfile = 'data/mnist_train.parquet'
 	inputfile_test = 'data/mnist_test.parquet'
-	alpha = 0.001
+	alpha = 0.001 # Learning rate
 	############################################
 
 	data_train = import_data(inputfile)
@@ -192,15 +252,36 @@ def main():
 	data_test = import_data(inputfile_test)
 	data_test = data_train.sample(frac=1).reset_index(drop=True)  # Shuffle data rows
 
-	trainingsize_list = [100,1000,3000,5000,10000,20000,30000,40000,50000]
-	accuracy_list,precision_list,recall_list,F1score_list = calculate_performance_vs_trainingsize(trainingsize_list,n_layers,alpha,data_train,data_test)
+	######### Performance vs. alpha #########
+	alpha_list = [1.0,0.5,0.1,0.05,0.01,0.005,0.001,0.0005,0.0001]
+	trainingsize = 10000
+
+	accuracy_list,precision_list,recall_list,F1score_list = calculate_performance_vs_alpha(trainingsize,
+		n_layers,alpha_list,data_train,data_test)
+
+	dfoutput = pd.DataFrame({'0.alpha_list':alpha_list,
+		'1.accuracy':np.round(accuracy_list,5),'2.precision':np.round(precision_list,3),
+		'3.Recall':np.round(recall_list,3),
+		'4.F1score_list':np.round(F1score_list,3)})
+	dfoutput.to_csv('performance_vs_alpha1.csv', index=False,sep='\t')
+	#############################################
+
+	'''
+
+	######### Performance vs. training size #########
+	trainingsize_list = [100,500,1000,3000,5000,10000,20000,30000,40000]
+	accuracy_list,precision_list,recall_list,F1score_list = calculate_performance_vs_trainingsize(trainingsize_list
+		,n_layers,alpha,data_train,data_test)
 
 
 	dfoutput = pd.DataFrame({'0.training_size':trainingsize_list,
 		'1.accuracy':np.round(accuracy_list,3),'2.precision':np.round(precision_list,3),
 		'3.Recall':np.round(recall_list,3),
 		'4.F1score_list':np.round(F1score_list,3)})
-	dfoutput.to_csv('output2.csv', index=False,sep='\t')
+	dfoutput.to_csv('output3.csv', index=False,sep='\t')
+	#################################################
+	'''
+
 
 	#print(accuracy_list)
 
