@@ -222,17 +222,20 @@ def calculate_learning_curve(trainingsize_list,n_layers,alpha,data_train,data_te
 		weights_matrices = initialize_wmatrices(n_layers)
 		weights_matrices = train_weights(data_train,weights_matrices,n,alpha)
 
-		training_curve+=[calculate_cross_entropy(data,weights_matrices,n)] 
-		#confusion_matrix = calculate_confusion_matrix(data_test,weights_matrices,1,1000)
-		#print(confusion_matrix)
-		#accuracy,precision,recall,F1score = performance_metrix(confusion_matrix)
+		# Meter lo de abajo en una funcion
+			for i in range(ni,nf+1):
+				input_layer = np.array(data.iloc[i].tolist()[1:])
+				ground = int(data_test.iloc[i].tolist()[0])
+				#draw_number(input_layer)
+				output_layer,a_list = feed_forward(input_layer,weights_matrices)
+				prediction = output_layer.argmax()
+				# comparar la prediccion con la data posta usando la cross entropy
+				# cross entropy(prediccion,ground)
+		training_curve+=[sum_cross_entropy] 
+		# Hacer lo mismo de arriba pero con testing dataset
 
-		#accuracy_list += [accuracy]
-		#precision_list += [precision]
-		#recall_list += [recall]
-		#F1score_list += [F1score]
 
-	return #accuracy_list,precision_list,recall_list,F1score_list
+	return #learning_curve, testing_curve
 
 
 
