@@ -237,7 +237,9 @@ def calculate_learning_curve(trainingsize_list,n_layers,alpha,data_train,data_te
 
 	return #learning_curve, testing_curve
 
+def cross_entropy():
 
+	
 
 
 ########################  MAIN  ########################
