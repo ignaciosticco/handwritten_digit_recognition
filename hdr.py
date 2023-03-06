@@ -129,12 +129,9 @@ def calculate_confusion_matrix(data_test,weights_matrices,ni,nf):
 	for i in range(ni,nf+1):
 		input_layer = np.array(data_test.iloc[i].tolist()[1:])
 		ground = int(data_test.iloc[i].tolist()[0])
-		#draw_number(input_layer)
 		output_layer,a_list = feed_forward(input_layer,weights_matrices)
 		prediction = output_layer.argmax()
 
-		#print("ground:",ground
-		#print("Predicción:",prediction)
 		confusion_matrix[ground,prediction]+=1
 
 	return confusion_matrix
@@ -190,7 +187,6 @@ def calculate_performance_vs_alpha(trainingsize,n_layers,alpha_list,data,data_te
 
 
 	for alpha in alpha_list: 
-		print("alpha=",alpha)
 		del weights_matrices  # just in case it brings information from the past
 		weights_matrices = initialize_wmatrices(n_layers)
 		weights_matrices = train_weights(data,weights_matrices,trainingsize,alpha)
@@ -207,9 +203,6 @@ def calculate_performance_vs_alpha(trainingsize,n_layers,alpha_list,data,data_te
 
 def calculate_learning_curve(trainingsize_list,n_layers,alpha,data_train,data_test):
 	'''
-	TO DO: FINISH THIS FUNCTION!!!		
-	Calculate cross entropy vs. training dataset size
-	The cross entropy is calculated for the traing set and the testing set
 	https://machinelearningmastery.com/learning-curves-for-diagnosing-machine-learning-model-performance/
 	'''
 
@@ -222,24 +215,32 @@ def calculate_learning_curve(trainingsize_list,n_layers,alpha,data_train,data_te
 		weights_matrices = initialize_wmatrices(n_layers)
 		weights_matrices = train_weights(data_train,weights_matrices,n,alpha)
 
-		# Meter lo de abajo en una funcion
-			for i in range(ni,nf+1):
-				input_layer = np.array(data.iloc[i].tolist()[1:])
-				ground = int(data_test.iloc[i].tolist()[0])
-				#draw_number(input_layer)
-				output_layer,a_list = feed_forward(input_layer,weights_matrices)
-				prediction = output_layer.argmax()
-				# comparar la prediccion con la data posta usando la cross entropy
-				# cross entropy(prediccion,ground)
-		training_curve+=[sum_cross_entropy] 
-		# Hacer lo mismo de arriba pero con testing dataset
+		sum_cross_entropy_training = calculate_sum_cross_entropy(data_train,weights_matrices,n)
+		sum_cross_entropy_testing = calculate_sum_cross_entropy(data_test,weights_matrices,n)
+
+		training_curve+=[sum_cross_entropy_training/float(n-1)]
+		testing_curve+=[sum_cross_entropy_testing/float(n-1)]
+
+	return training_curve,testing_curve 
+
+def cross_entropy(output_layer,ground):
+
+	prediction = output_layer.argmax()
+	cross_entropy = -math.log(output_layer[prediction])
+	return cross_entropy
 
 
-	return #learning_curve, testing_curve
+def calculate_sum_cross_entropy(dataset,weights_matrices,n):	
 
-def cross_entropy():
+	sum_cross_entropy = 0.0
+	for i in range(1,n):
+		input_layer = np.array(dataset.iloc[i].tolist()[1:])
+		ground = int(dataset.iloc[i].tolist()[0])
+		output_layer,a_list = feed_forward(input_layer,weights_matrices)
+		
+		sum_cross_entropy += cross_entropy(output_layer,ground)
 
-	
+	return sum_cross_entropy
 
 
 ########################  MAIN  ########################
@@ -255,8 +256,19 @@ def main():
 	data_train = import_data(inputfile)
 	data_train = data_train.sample(frac=1).reset_index(drop=True) # Shuffle data rows
 	data_test = import_data(inputfile_test)
-	data_test = data_train.sample(frac=1).reset_index(drop=True)  # Shuffle data rows
+	data_test = data_test.sample(frac=1).reset_index(drop=True)  # Shuffle data rows
 
+	trainingsize_list = [100,500,1000,3000,5000,10000]
+	#trainingsize_list = [100,1000,10000]
+
+	training_curve,testing_curve = calculate_learning_curve(trainingsize_list,n_layers,alpha,data_train,data_test)
+
+	dfoutput = pd.DataFrame({'0.N':trainingsize_list,
+		'1.training_curve':np.round(training_curve,3),'2.testing_curve':np.round(testing_curve,3)})
+	dfoutput.to_csv('learning_curves.csv', index=False,sep='\t')
+
+
+	'''
 	######### Performance vs. alpha #########
 	alpha_list = [1.0,0.5,0.1,0.05,0.01,0.005,0.001,0.0005,0.0001]
 	trainingsize = 10000
@@ -271,7 +283,7 @@ def main():
 	dfoutput.to_csv('performance_vs_alpha1.csv', index=False,sep='\t')
 	#############################################
 
-	'''
+	
 
 	######### Performance vs. training size #########
 	trainingsize_list = [100,500,1000,3000,5000,10000,20000,30000,40000]
